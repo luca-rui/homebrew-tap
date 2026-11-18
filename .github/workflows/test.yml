@@ -1,0 +1,76 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  formula:
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel]
+    env:
+      HOMEBREW_NO_INSTALL_CLEANUP: "1"
+      HOMEBREW_NO_ANALYTICS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Use this checkout as the tap
+        run: |
+          taps="$(brew --repository)/Library/Taps/luca-rui"
+          mkdir -p "$taps"
+          ln -s "$GITHUB_WORKSPACE" "$taps/homebrew-tap"
+
+      - name: Install
+        run: brew install --build-from-source luca-rui/tap/rga-ocr
+
+      - name: Linkage
+        run: brew linkage --test rga-ocr
+
+      - name: Test
+        run: brew test luca-rui/tap/rga-ocr
+
+      - name: Dependencies fit together
+        run: |
+          "$(brew --prefix python@3.14)/bin/python3.14" -m pip \
+            --python "$(brew --prefix rga-ocr)/libexec/bin/python" check
+
+      - name: Search a scanned page
+        run: |
+          work="$RUNNER_TEMP/search"
+          mkdir -p "$work/docs"
+          "$(brew --prefix rga-ocr)/libexec/bin/python" - "$work/docs/scan.png" <<'PY'
+          import sys
+          from PIL import Image, ImageDraw, ImageFont
+          img = Image.new("RGB", (1400, 300), "white")
+          font = ImageFont.load_default(size=96)
+          ImageDraw.Draw(img).text((60, 80), "quarterly zebra invoice", fill="black", font=font)
+          img.save(sys.argv[1])
+          PY
+          export RGA_OCR_CACHE_DIR="$work/cache"
+          rga-ocr --rga-config-file="$work/rga.jsonc" setup --apply
+          grep -q "/opt/rga-ocr/libexec/bin/python" "$work/rga.jsonc"
+          if grep -q "Cellar" "$work/rga.jsonc"; then
+            echo "setup wrote a Cellar path, which breaks on brew upgrade"
+            exit 1
+          fi
+          rga-ocr --rga-config-file="$work/rga.jsonc" zebra "$work/docs" | tee "$work/out.txt"
+          grep -q "scan.png" "$work/out.txt"
+
+      - name: Audit
+        if: always()
+        run: brew audit --strict luca-rui/tap/rga-ocr

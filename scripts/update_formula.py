@@ -64,15 +64,28 @@ TEMPLATE = '''class RgaOcr < Formula
   on_intel do
 {intel}  end
 
+  # Keeps the install name that `install` gives pdfium on Intel.
+  preserve_rpath
+
 {common}
   def install
-    venv = virtualenv_create(libexec, "{python_command}")
+    # Every dependency is a resource, so the environment does not need to
+    # see the packages of Homebrew's Python.
+    venv = virtualenv_create(libexec, "{python_command}", system_site_packages: false)
     resources.each do |r|
       r.stage do
         venv.pip_install Pathname.pwd/r.downloader.basename
       end
     end
     venv.pip_install_and_link buildpath/File.basename(stable.url)
+
+    # The Intel build of pdfium has no room in its header for the long
+    # install name Homebrew would write. pypdfium2 loads the library by
+    # path, so a short name that Homebrew leaves alone does the job.
+    return unless Hardware::CPU.intel?
+
+    pdfium = venv.site_packages/"pypdfium2_raw/libpdfium.dylib"
+    MachO::Tools.change_dylib_id(pdfium, "@rpath/libpdfium.dylib")
   end
 
   def caveats

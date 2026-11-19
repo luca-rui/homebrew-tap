@@ -88,13 +88,6 @@ TEMPLATE = '''class RgaOcr < Formula
     MachO::Tools.change_dylib_id(pdfium, "@rpath/libpdfium.dylib")
   end
 
-  def caveats
-    <<~EOS
-      Wire the OCR adapters into ripgrep-all once:
-        rga-ocr setup --apply
-    EOS
-  end
-
   test do
     assert_match version.to_s, shell_output("#{{bin}}/rga-ocr --version")
     assert_match(/vision\\s+yes/, shell_output("#{{bin}}/rga-ocr --engines"))

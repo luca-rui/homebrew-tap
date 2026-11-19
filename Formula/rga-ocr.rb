@@ -3,8 +3,8 @@ class RgaOcr < Formula
 
   desc "Search PDFs, images and Office files with ripgrep-all and local OCR"
   homepage "https://github.com/luca-rui/rga-ocr"
-  url "https://files.pythonhosted.org/packages/9e/e5/4b658bed5ab12387a0bd4310d1f8ae782bc0681693475d97436d03ed5679/rga_ocr-0.2.2-py3-none-any.whl"
-  sha256 "aeba9bff3cd03cf2be95a43c6e5091f2c3dd9e100938dacf2698bb62f5378fda"
+  url "https://files.pythonhosted.org/packages/55/c1/b41590bfc7b956e6de860be7c872ad8fcae07293da23ad24bf89800b8610/rga_ocr-0.2.3-py3-none-any.whl"
+  sha256 "5b5c996184dc81f6188aa744afa344b4ef8a7ffa54e9d07eab0a7a8c6ae810eb"
   license "MIT"
 
   depends_on :macos

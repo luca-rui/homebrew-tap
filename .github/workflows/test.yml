@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  # The formula has no bottles and its Homebrew dependencies are not
+  # pinned, so an install can break without a change in this repository.
+  schedule:
+    - cron: "43 4 * * 3"
   workflow_dispatch:
 
 permissions:
@@ -14,6 +18,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  script:
+    name: script
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test the update script
+        run: python3 -I tests/test_update_formula.py
+
   formula:
     name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
@@ -92,3 +107,34 @@ jobs:
       - name: Audit
         if: always()
         run: brew audit --strict luca-rui/tap/rga-ocr
+
+  # The commit status `formula-tests` is the one result a ruleset on main
+  # can require, rather than the jobs above. A status belongs to a commit,
+  # so the run that `bump` starts by hand on its branch counts for the pull
+  # request of that branch; the jobs of such a run are not rolled up there.
+  # A pull request from a fork has a read-only token and gets no status
+  # from its own run.
+  status:
+    name: status
+    needs: [script, formula]
+    if: >-
+      ${{ !cancelled() && (github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository)) }}
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+    steps:
+      - name: Report the result on the commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # The head of the pull request, not the merge commit the run built.
+          SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          STATE: ${{ needs.script.result == 'success' && needs.formula.result == 'success' && 'success' || 'failure' }}
+        run: |
+          gh api --method POST "repos/$GITHUB_REPOSITORY/statuses/$SHA" \
+            -f state="$STATE" \
+            -f context=formula-tests \
+            -f description="test workflow, started by $GITHUB_EVENT_NAME" \
+            -f target_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --silent

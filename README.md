@@ -9,11 +9,11 @@ Office files with ripgrep-all and local OCR.
 
 ```
 brew install luca-rui/tap/rga-ocr
-rga-ocr setup --apply
 ```
 
-The second command wires the OCR adapters into ripgrep-all. It is needed
-once, not after every upgrade.
+That is all: `rga-ocr <query> <path>` searches right away. Only plain
+`rga` needs `rga-ocr setup --apply` once, which writes the OCR adapters
+into ripgrep-all's own config.
 
 Upgrade and removal:
 

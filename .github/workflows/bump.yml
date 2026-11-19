@@ -33,6 +33,7 @@ jobs:
         env:
           MODE: ${{ inputs.dependencies && ' ' || '--new-release' }}
         run: |
+          set -o pipefail    # a failure left of a pipe fails the step
           python3 -I scripts/update_formula.py $MODE | tee "$RUNNER_TEMP/update.txt"
           if git diff --quiet -- Formula; then
             echo "changed=false" >> "$GITHUB_OUTPUT"

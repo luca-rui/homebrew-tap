@@ -58,6 +58,7 @@ jobs:
       - name: Search a scanned image and a scanned PDF
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
+          set -o pipefail    # a failure left of a pipe fails the step
           work="$RUNNER_TEMP/search"
           mkdir -p "$work/docs"
           "$(brew --prefix rga-ocr)/libexec/bin/python" - "$work/docs/scan.png" "$work/docs/scan.pdf" <<'PY'

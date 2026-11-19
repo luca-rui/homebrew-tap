@@ -33,8 +33,6 @@ What the formula does:
   by URL and sha256, because several of them are no reasonable source
   builds. There are no bottles; the install only unpacks wheels and takes
   seconds.
-- Intel Macs get their own wheels. That path is untested; I have no
-  Intel machine to try it on.
 
 ## Maintenance
 

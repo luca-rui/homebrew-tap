@@ -70,6 +70,14 @@ jobs:
           img.save(sys.argv[2])
           PY
           export RGA_OCR_CACHE_DIR="$work/cache"
+
+          # A fresh install searches without setup --apply.
+          rga-ocr zebra "$work/docs" | tee "$work/plain.txt"
+          grep -q "scan.png" "$work/plain.txt"
+          grep -q "scan.pdf" "$work/plain.txt"
+
+          # setup --apply still writes a path that survives brew upgrade.
+          rm -rf "$work/cache"
           rga-ocr --rga-config-file="$work/rga.jsonc" setup --apply
           grep -q "/opt/rga-ocr/libexec/bin/python" "$work/rga.jsonc"
           if grep -q "Cellar" "$work/rga.jsonc"; then

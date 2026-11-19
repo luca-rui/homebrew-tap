@@ -3,8 +3,8 @@ class RgaOcr < Formula
 
   desc "Search PDFs, images and Office files with ripgrep-all and local OCR"
   homepage "https://github.com/luca-rui/rga-ocr"
-  url "https://files.pythonhosted.org/packages/7f/6d/86b22abfb988152d04526d6b55f88447ffa75407093bdde169284ed0033c/rga_ocr-0.2.1-py3-none-any.whl"
-  sha256 "05517761471dc5d1d3a9b7b4e422fce0bc7447250a1c22c94346d26c5f83c643"
+  url "https://files.pythonhosted.org/packages/9e/e5/4b658bed5ab12387a0bd4310d1f8ae782bc0681693475d97436d03ed5679/rga_ocr-0.2.2-py3-none-any.whl"
+  sha256 "aeba9bff3cd03cf2be95a43c6e5091f2c3dd9e100938dacf2698bb62f5378fda"
   license "MIT"
 
   depends_on :macos
@@ -98,13 +98,6 @@ class RgaOcr < Formula
 
     pdfium = venv.site_packages/"pypdfium2_raw/libpdfium.dylib"
     MachO::Tools.change_dylib_id(pdfium, "@rpath/libpdfium.dylib")
-  end
-
-  def caveats
-    <<~EOS
-      Wire the OCR adapters into ripgrep-all once:
-        rga-ocr setup --apply
-    EOS
   end
 
   test do

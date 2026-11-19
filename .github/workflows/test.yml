@@ -36,30 +36,38 @@ jobs:
           ln -s "$GITHUB_WORKSPACE" "$taps/homebrew-tap"
 
       - name: Install
+        id: install
         run: brew install --build-from-source luca-rui/tap/rga-ocr
 
+      # The checks below each run when the install worked, so one run shows
+      # every failure.
       - name: Linkage
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: brew linkage --test rga-ocr
 
       - name: Test
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: brew test luca-rui/tap/rga-ocr
 
       - name: Dependencies fit together
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           "$(brew --prefix python@3.14)/bin/python3.14" -m pip \
             --python "$(brew --prefix rga-ocr)/libexec/bin/python" check
 
-      - name: Search a scanned page
+      - name: Search a scanned image and a scanned PDF
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: |
           work="$RUNNER_TEMP/search"
           mkdir -p "$work/docs"
-          "$(brew --prefix rga-ocr)/libexec/bin/python" - "$work/docs/scan.png" <<'PY'
+          "$(brew --prefix rga-ocr)/libexec/bin/python" - "$work/docs/scan.png" "$work/docs/scan.pdf" <<'PY'
           import sys
           from PIL import Image, ImageDraw, ImageFont
           img = Image.new("RGB", (1400, 300), "white")
           font = ImageFont.load_default(size=96)
           ImageDraw.Draw(img).text((60, 80), "quarterly zebra invoice", fill="black", font=font)
           img.save(sys.argv[1])
+          img.save(sys.argv[2])
           PY
           export RGA_OCR_CACHE_DIR="$work/cache"
           rga-ocr --rga-config-file="$work/rga.jsonc" setup --apply
@@ -70,6 +78,7 @@ jobs:
           fi
           rga-ocr --rga-config-file="$work/rga.jsonc" zebra "$work/docs" | tee "$work/out.txt"
           grep -q "scan.png" "$work/out.txt"
+          grep -q "scan.pdf" "$work/out.txt"
 
       - name: Audit
         if: always()

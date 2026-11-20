@@ -3,8 +3,8 @@ class RgaOcr < Formula
 
   desc "Search PDFs, images and Office files with ripgrep-all and local OCR"
   homepage "https://github.com/luca-rui/rga-ocr"
-  url "https://files.pythonhosted.org/packages/d5/e6/e58a96a2d99566af877f4fcd4c8344086cae3add12c4e79bae9d0a7d8ae7/rga_ocr-0.2.4-py3-none-any.whl"
-  sha256 "47b719114df7ee82e4ab9fd2175c67576a3fe716c31c0ceec0482cc72a2713fd"
+  url "https://files.pythonhosted.org/packages/16/0a/cf5fcdb0fefc8737d34078e320638f6cf9b6cb3696f09c3bb8ae6a0209d2/rga_ocr-0.2.5-py3-none-any.whl"
+  sha256 "46529e5a2184689d08b6e85cfc26fb4d2bbc005d79655ac6d7ebfcf2a8bf3dd5"
   license "MIT"
 
   depends_on :macos
@@ -51,8 +51,8 @@ class RgaOcr < Formula
   preserve_rpath
 
   resource "platformdirs" do
-    url "https://files.pythonhosted.org/packages/f8/46/3737af9f971f3934794103256d7f1ed6200a62be0c7b7ff09ac4cf6b3422/platformdirs-4.14.7-py3-none-any.whl"
-    sha256 "391513b74707c42335fff3ea17eaac657a7ee9ffcadd809634d34ea594d0122c"
+    url "https://files.pythonhosted.org/packages/5b/be/373cc7341f53bfd3acba3e5db62433fd960a45fcf73ad64a5f4d27e74910/platformdirs-4.14.8-py3-none-any.whl"
+    sha256 "1e34af590de4d978631b751eb2202f2fee4497537a17c1720b12fcf57b331392"
   end
 
   resource "pyobjc-core" do

@@ -2,7 +2,11 @@ name: bump
 
 on:
   schedule:
+    # Daily: a new rga-ocr. Its dependencies move along.
     - cron: "17 5 * * *"
+    # Mondays: new dependency releases too, without a new rga-ocr. The
+    # formula then gets a revision. MODE below names this line.
+    - cron: "47 5 * * 1"
   workflow_dispatch:
     inputs:
       dependencies:
@@ -31,7 +35,7 @@ jobs:
       - name: Rewrite the formula from PyPI
         id: update
         env:
-          MODE: ${{ inputs.dependencies && ' ' || '--new-release' }}
+          MODE: ${{ (inputs.dependencies || github.event.schedule == '47 5 * * 1') && ' ' || '--new-release' }}
         run: |
           set -o pipefail    # a failure left of a pipe fails the step
           python3 -I scripts/update_formula.py $MODE | tee "$RUNNER_TEMP/update.txt"
@@ -46,23 +50,68 @@ jobs:
         if: steps.update.outputs.changed == 'true'
         env:
           VERSION: ${{ steps.update.outputs.version }}
+          BOT: "41898282+github-actions[bot]@users.noreply.github.com"
         run: |
-          git fetch origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH" 2>/dev/null || true
-          if git rev-parse -q --verify "origin/$BRANCH" >/dev/null \
-              && git diff --quiet "origin/$BRANCH" -- Formula; then
-            echo "The open branch already carries this formula."
-            exit 0
+          set -o pipefail    # a failure left of a pipe fails the step
+          title="Update the rga-ocr formula from PyPI (rga-ocr $VERSION)"
+
+          # Exit code 2 is "no such branch". Anything else is a failed
+          # lookup, and that must not pass for a missing branch.
+          found=0
+          git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null || found=$?
+          if [ "$found" -ne 0 ] && [ "$found" -ne 2 ]; then
+            echo "::error::Could not look up $BRANCH on the remote."
+            exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git switch -C "$BRANCH"
-          git commit -m "Update the rga-ocr formula from PyPI (rga-ocr $VERSION)" -- Formula
-          git push --force origin "$BRANCH"
-          if [ -z "$(gh pr list --head "$BRANCH" --state open --json number --jq '.[].number')" ]; then
-            gh pr create --head "$BRANCH" --base main \
-              --title "Update the rga-ocr formula from PyPI (rga-ocr $VERSION)" \
-              --body "Written by \`scripts/update_formula.py\` from the newest wheels on PyPI. The diff shows which packages moved."
+
+          push=true
+          tip=""
+          if [ "$found" -eq 0 ]; then
+            git fetch --depth=1 origin "+refs/heads/$BRANCH:refs/remotes/origin/$BRANCH"
+            tip="$(git rev-parse "origin/$BRANCH")"
+            if git diff --quiet "origin/$BRANCH" -- Formula; then
+              echo "$BRANCH already carries this formula."
+              push=false
+            elif [ "$(git log -1 --format=%ae "origin/$BRANCH")" != "$BOT" ]; then
+              # The push below replaces the branch. Somebody's commit on it
+              # would be gone.
+              echo "::error::$BRANCH ends in a commit this workflow did not write. Merge or delete the branch, then run bump again."
+              exit 1
+            fi
           fi
-          # A pull request opened with GITHUB_TOKEN does not start workflows,
-          # so the test run is started by hand on the branch.
-          gh workflow run test.yml --ref "$BRANCH"
+
+          if [ "$push" = true ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "$BOT"
+            git switch -C "$BRANCH"
+            git commit -m "$title" -- Formula
+            # Replaces the branch only when it is still the commit looked at
+            # above, or still missing.
+            git push --force-with-lease="$BRANCH:$tip" origin "$BRANCH"
+            tip="$(git rev-parse HEAD)"
+          fi
+
+          # From here on nothing depends on the push: a branch left without a
+          # pull request or without a test run gets both on the next run.
+          {
+            echo "Written by \`scripts/update_formula.py\` from the wheels on PyPI. The diff shows which packages moved."
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/update.txt"
+            echo '```'
+          } > "$RUNNER_TEMP/body.md"
+          number="$(gh pr list --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          if [ -z "$number" ]; then
+            gh pr create --head "$BRANCH" --base main --title "$title" --body-file "$RUNNER_TEMP/body.md"
+          else
+            gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$number" \
+              -f title="$title" -F body=@"$RUNNER_TEMP/body.md" --silent
+          fi
+
+          # The pull request run of a pull request opened with GITHUB_TOKEN
+          # waits for an approval by hand, so the test run is started here.
+          # It reports the commit status that main requires.
+          runs="$(gh run list --workflow test.yml --commit "$tip" --event workflow_dispatch --json databaseId --jq 'length')"
+          if [ "$push" = true ] || [ "$runs" -eq 0 ]; then
+            gh workflow run test.yml --ref "$BRANCH"
+          fi
